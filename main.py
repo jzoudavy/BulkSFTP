@@ -7,6 +7,7 @@ import sys
 import pathlib
 import glob
 import re
+from alive_progress import alive_bar
 
 
 def sourcefileListGeneration(sourcepath):
@@ -20,11 +21,13 @@ def seasonCalculator(sourceFileList, parentDir):
     seasons = []
 
     for sourcePath in sourceFileList:
-        seasons.append(re.search('S\d\d', sourcePath)[0])
+        if re.search('S\d\d', sourcePath) is not None:
+            seasons.append(re.search('S\d\d', sourcePath)[0])
 
     seasons = set(seasons)
 
     return seasons
+
 
 
 def createFolder(host, port, username, password, showname, parentDir, seasons):
@@ -37,21 +40,30 @@ def createFolder(host, port, username, password, showname, parentDir, seasons):
     if showname not in sftp_Create_Folder.listdir(f"{parentDir}"):
         sftp_Create_Folder.mkdir(f"{parentDir}/{showname}")
 
-    for i in seasons:
-        if i not in sftp_Create_Folder.listdir(f"{parentDir}/{showname}"):
-            sftp_Create_Folder.mkdir(f"{parentDir}/{showname}/{i}")
+    if seasons:
+        for i in seasons:
+            if i not in sftp_Create_Folder.listdir(f"{parentDir}/{showname}"):
+                sftp_Create_Folder.mkdir(f"{parentDir}/{showname}/{i}")
 
     sftp_Create_Folder.close()
     transport_CreateFolder.close()
     print('Folder creation done.')
 
+def printTotals(transferred, toBeTransferred):
+    with alive_bar(toBeTransferred) as bar:
+        print(transferred)
+        bar()
+
 
 def uploadFile(host, port, username, password, sourceFile, parentDir, showname):
-    season = re.search('S\d\d', sourceFile)[0]
-    episode = re.search('S\d\dE\d\d', sourceFile)[0]
-
     ext = sourceFile.split('.')[-1]
-    targetPath = f"{parentDir}/{showname}/{season}/{showname}.{episode}.{ext}"
+    if re.search('S\d\d', sourceFile) is not None:
+        season = re.search('S\d\d', sourceFile)[0]
+        episode = re.search('S\d\dE\d\d', sourceFile)[0]
+
+        targetPath = f"{parentDir}/{showname}/{season}/{showname}.{episode}.{ext}"
+    else:
+        targetPath = f"{parentDir}/{showname}/{showname}.{ext}"
 
     transport_UploadFile = paramiko.Transport((host, port))
 
@@ -59,28 +71,31 @@ def uploadFile(host, port, username, password, sourceFile, parentDir, showname):
 
     sftp = paramiko.SFTPClient.from_transport(transport_UploadFile)
 
-    sftp.put(sourceFile, targetPath)
+    #sftp.put(sourceFile, targetPath)
+    sftp.put(sourceFile, targetPath,callback=printTotals)
 
     sftp.close()
     transport_UploadFile.close()
 
 
 def print_hi():
-    host = "X.X.X.X"  # hard-coded
+    host = "10.0.0.50"  # hard-coded
     port = 22
-    password = "user"  # hard-coded
-    username = "password"  # hard-coded
+    password = "bloom"  # hard-coded
+    username = "bloom"  # hard-coded
 
-    parentDir = "/mnt/media/TV"  # parent dir on my server
-    showname = 'The Show'
-    sourcepath = r'C:\Users\jhg\Downloads\test'  # source file dir on my PC
+    parentDirMov = "/mnt/media/Movies"  # parent dir on my server
+    parentDirTV = "/mnt/media/TV"  # parent dir on my server
+    parentDir=parentDirTV
+    showname = 'Billions'
+    sourcepath = r'C:\Users\jhg\Downloads\Billions'  # source file dir on my PC
 
     sourceFileList = sourcefileListGeneration(sourcepath)
 
     seasons = seasonCalculator(sourceFileList, parentDir)
 
     createFolder(host, port, username, password, showname, parentDir, seasons)
-
+    
     start = time.time()
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
