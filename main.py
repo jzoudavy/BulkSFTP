@@ -79,10 +79,10 @@ def uploadFile(host, port, username, password, sourceFile, parentDir, showname):
 
 
 def print_hi():
-    host = "10.0.0.50"  # hard-coded
+    host = "1xxxxx"  # hard-coded
     port = 22
-    password = "bloom"  # hard-coded
-    username = "bloom"  # hard-coded
+    password = "xxx"  # hard-coded
+    username = "xxx"  # hard-coded
 
     parentDirMov = "/mnt/media/Movies"  # parent dir on my server
     parentDirTV = "/mnt/media/TV"  # parent dir on my server
